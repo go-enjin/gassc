@@ -162,6 +162,7 @@ build-amd64: BUILD_RELEASE=$(call _rel_ver)
 build-amd64: TRIM_PATHS=$(call _trim_path)
 build-amd64: export CGO_ENABLED=1
 build-amd64: export CC=x86_64-linux-gnu-gcc
+build-amd64: export CXX=x86_64-linux-gnu-g++
 build-amd64:
 	@$(call _build_target,"${BIN_NAME}.linux.amd64",linux,amd64)
 	@sha256sum "${BIN_NAME}.linux.amd64"
@@ -171,6 +172,7 @@ build-arm64: BUILD_RELEASE=$(call _rel_ver)
 build-arm64: TRIM_PATHS=$(call _trim_path)
 build-arm64: export CGO_ENABLED=1
 build-arm64: export CC=aarch64-linux-gnu-gcc
+build-arm64: export CXX=aarch64-linux-gnu-g++
 build-arm64:
 	@$(call _build_target,"${BIN_NAME}.linux.arm64",linux,arm64)
 	@sha256sum "${BIN_NAME}.linux.arm64"
