@@ -4,21 +4,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/bep/golibsass/libsass"
 	"github.com/urfave/cli/v2"
-	"github.com/wellington/go-libsass"
 )
 
 var (
-	Version = "0.1.0"
+	Version = "0.2.0"
 )
 
 func main() {
 	app := &cli.App{
 		Name:        "gassc",
 		Usage:       "go-enjin sass compiler",
-		UsageText:   "gassc [options] source.scss [sources...]",
+		UsageText:   "gassc [options] <source.scss>",
 		Description: "Simple libsass compiler used by the go-enjin project",
 		Authors: []*cli.Author{{
 			Name:  "The Go-Enjin Team",
@@ -27,29 +26,42 @@ func main() {
 		Version: Version,
 		Action:  action,
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  "comments",
-				Usage: "include comments with output",
-			},
 			&cli.PathFlag{
-				Name:  "font-dir",
-				Usage: "specify where to find fonts",
-			},
-			&cli.StringSliceFlag{
-				Name:  "include-path",
-				Usage: "add compiler include paths",
+				Name:    "output-file",
+				Usage:   "specify file to write, use \"-\" for stdout",
+				Value:   "-",
+				Aliases: []string{"O"},
 			},
 			&cli.StringFlag{
-				Name:  "output-style",
-				Usage: "set presentation of css output, must be one of: nested, expanded, compact or compressed",
+				Name:    "output-style",
+				Usage:   "set presentation of css output, must be one of: nested, expanded, compact or compressed",
+				Value:   "nested",
+				Aliases: []string{"S"},
 			},
-			&cli.IntFlag{
-				Name:  "precision",
-				Usage: "specify the floating point precision preserved during math operations",
+			&cli.StringSliceFlag{
+				Name:    "include-path",
+				Usage:   "add compiler include paths",
+				Aliases: []string{"I"},
 			},
 			&cli.BoolFlag{
-				Name:  "sass-syntax",
-				Usage: "use sass syntax, scss is default",
+				Name:    "no-source-map",
+				Usage:   "do not include source-map output (embedded when output-file is \"-\")",
+				Aliases: []string{"M"},
+			},
+			&cli.BoolFlag{
+				Name:    "sass-syntax",
+				Usage:   "use sass syntax, scss is default",
+				Aliases: []string{"A"},
+			},
+			&cli.IntFlag{
+				Name:    "precision",
+				Usage:   "specify the floating point precision preserved during math operations",
+				Value:   10,
+				Aliases: []string{"P"},
+			},
+			&cli.BoolFlag{
+				Name:  "release",
+				Usage: "same as: --no-source-map --output-style=compressed",
 			},
 		},
 	}
@@ -60,70 +72,85 @@ func main() {
 }
 
 func action(ctx *cli.Context) (err error) {
-	if ctx.NArg() == 0 {
+	if ctx.NArg() != 1 {
 		cli.ShowAppHelpAndExit(ctx, 1)
 	}
-	for idx, path := range os.Args {
-		if idx == 0 {
-			continue
-		}
-		if err = process(ctx, path); err != nil {
-			return
-		}
+	if err = process(ctx, ctx.Args().First()); err != nil {
+		return
 	}
 	return
 }
 
 func process(ctx *cli.Context, src string) (err error) {
-	var r *os.File
-	if r, err = os.Open(src); err != nil {
+
+	var data []byte
+	if data, err = os.ReadFile(src); err != nil {
 		return
 	}
+	contents := string(data)
 
-	var comp libsass.Compiler
-	if comp, err = libsass.New(os.Stdout, r); err != nil {
-		return
+	releaseMode := ctx.Bool("release")
+
+	outputFile := ctx.Path("output-file")
+	if outputFile == "" {
+		outputFile = "-"
 	}
-
-	if ctx.Bool("comments") {
-		if err = comp.Option(libsass.Comments(true)); err != nil {
-			return
-		}
-	}
-
-	if fontDir := ctx.Path("font-dir"); fontDir != "" {
-		if err = comp.Option(libsass.FontDir(fontDir)); err != nil {
-			return
-		}
-	}
-
-	if outputStyleName := ctx.String("output-style"); outputStyleName != "" {
-		var outputStyle int
-		switch strings.ToLower(outputStyleName) {
-		case "nested":
-			outputStyle = libsass.NESTED_STYLE
-		case "compact":
-			outputStyle = libsass.COMPACT_STYLE
-		case "expanded":
-			outputStyle = libsass.EXPANDED_STYLE
-		case "compressed":
-			outputStyle = libsass.COMPRESSED_STYLE
-		default:
-			err = fmt.Errorf("invalid output-style: %v, must be one of: nested, compact, expanded or compressed", outputStyleName)
-			return
-		}
-		if err = comp.Option(libsass.OutputStyle(outputStyle)); err != nil {
-			return
-		}
+	outputStyle := ctx.String("output-style")
+	if releaseMode {
+		outputStyle = "compressed"
 	}
 
 	includePaths := ctx.StringSlice("include-path")
 	includePaths = append(includePaths, filepath.Dir(src))
-	includePathsOption := libsass.IncludePaths(includePaths)
-	if err = comp.Option(includePathsOption); err != nil {
+	options := libsass.Options{
+		IncludePaths: includePaths,
+		Precision:    ctx.Int("precision"),
+		SassSyntax:   ctx.Bool("sass-syntax"),
+		OutputStyle:  libsass.ParseOutputStyle(outputStyle),
+	}
+
+	if !releaseMode && !ctx.Bool("no-source-map") {
+		if outputFile == "-" {
+			options.SourceMapOptions = libsass.SourceMapOptions{
+				Contents:       true,
+				OmitURL:        true,
+				EnableEmbedded: true,
+			}
+		} else {
+			options.SourceMapOptions = libsass.SourceMapOptions{
+				Filename:       outputFile + ".map",
+				Contents:       true,
+				OmitURL:        true,
+				EnableEmbedded: false,
+			}
+		}
+	}
+
+	var transpiler libsass.Transpiler
+	if transpiler, err = libsass.New(options); err != nil {
+		err = fmt.Errorf("error constructing transpilier: %v", err)
 		return
 	}
 
-	err = comp.Run()
+	var result libsass.Result
+	if result, err = transpiler.Execute(contents); err != nil {
+		err = fmt.Errorf("error transipiling: %v", err)
+		return
+	}
+
+	if outputFile == "" || outputFile == "-" {
+		_, _ = fmt.Fprint(os.Stdout, result.CSS)
+		return
+	}
+	if err = os.WriteFile(outputFile, []byte(result.CSS), 0660); err != nil {
+		err = fmt.Errorf("error writing output-file: %v", err)
+		return
+	}
+	if result.SourceMapFilename != "" && result.SourceMapContent != "" {
+		if err = os.WriteFile(result.SourceMapFilename, []byte(result.SourceMapContent), 0660); err != nil {
+			err = fmt.Errorf("error writing sourcemap file: %v - %v", result.SourceMapFilename, err)
+			return
+		}
+	}
 	return
 }
