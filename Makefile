@@ -28,7 +28,7 @@ export
 .PHONY: install install-autocomplete
 
 BIN_NAME ?= gassc
-UNTAGGED_VERSION ?= v0.2.0
+UNTAGGED_VERSION ?= v0.2.2
 UNTAGGED_COMMIT ?= 0000000000
 
 PWD = $(shell pwd)
