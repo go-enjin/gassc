@@ -213,3 +213,8 @@ install-autocomplete:
 	@echo "# installing ${BIN_NAME} bash_autocomplete to: ${GASSC_AUTOCOMPLETE_FILE}"
 	@${CMD} /usr/bin/install -v -m 0775 -T "./bash_autocomplete" "${GASSC_AUTOCOMPLETE_FILE}"
 	@${CMD} sha256sum "${GASSC_AUTOCOMPLETE_FILE}"
+
+#: begin debian packaging branch changes
+-include Debian.mk
+export
+#: end debian packaging branch changes

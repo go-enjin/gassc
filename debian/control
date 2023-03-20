@@ -1,0 +1,15 @@
+Source: gassc
+Section: go-enjin
+Priority: optional
+Maintainer: The Go-Enjin Team <go.enjin.org@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.5.1
+Homepage: https://go-enjin.org
+Vcs-Browser: https://github.com/go-enjin/gassc
+Vcs-Git: https://github.com/go-enjin/gassc.git
+Rules-Requires-Root: no
+
+Package: gassc
+Architecture: any
+Description: Go-Enjin libsass compilier
+ Simple libsass compiler used by the go-enjin project.

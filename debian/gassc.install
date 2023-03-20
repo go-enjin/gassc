@@ -1,0 +1,2 @@
+etc/bash_completion.d/gassc /etc/bash_completion.d
+usr/bin/gassc /usr/bin
