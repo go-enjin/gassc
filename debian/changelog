@@ -1,3 +1,9 @@
+gassc (0.2.2) unstable; urgency=medium
+
+  * Makefile CXX cross-compilation bugfixes
+
+ -- The Go-Enjin Team <go.enjin.org@gmail.com>  Mon, 20 Mar 2023 11:55:54 -0400
+
 gassc (0.2.1) unstable; urgency=medium
 
   * official v0.2.1 relase
