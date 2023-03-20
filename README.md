@@ -5,7 +5,7 @@ This is the SCSS compiler used by `enjenv` and Go-Enjin projects in general.
 # Installation
 
 ``` shell
-$ go install github.com/go-enjin/gassc
+$ go install github.com/go-enjin/gassc@latest
 ```
 
 # Usage
