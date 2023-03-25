@@ -34,8 +34,8 @@ UNTAGGED_COMMIT ?= 0000000000
 PWD = $(shell pwd)
 SHELL = /bin/bash
 
-BUILD_OS ?= linux
-BUILD_ARCH ?= `uname -m | perl -pe 's!aarch64!arm64!;s!x86_64!amd64!;'`
+BUILD_OS   := $(shell uname -s | awk '{print $$1}' | perl -pe '$$_=lc($$_)')
+BUILD_ARCH := $(shell uname -m | perl -pe 's!aarch64!arm64!;s!x86_64!amd64!;')
 
 prefix ?= /usr
 
