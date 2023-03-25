@@ -45,7 +45,7 @@ CLEAN_FILES     ?= "${BIN_NAME}" ${BIN_NAME}.*.* pprof.{proxy,repos,watch}
 DISTCLEAN_FILES ?=
 REALCLEAN_FILES ?=
 
-define _trim_path =
+define _trim_path
 $(shell \
 if [ "${GOPATH}" != "" ]; then \
 	echo "${GOPATH};${PWD}"; \
@@ -54,11 +54,11 @@ else \
 fi)
 endef
 
-define _tag_ver =
+define _tag_ver
 $(shell ([ -d .git ] && git describe 2> /dev/null) || echo "${UNTAGGED_VERSION}")
 endef
 
-define _rel_ver =
+define _rel_ver
 $(shell \
 	if [ -d .git ]; then \
 		if [ -z "${GIT_STATUS}" ]; then \
@@ -107,7 +107,7 @@ define _build_debug =
 		.
 endef
 
-define _upx_build =
+define _upx_build
 	if [ -x /usr/bin/upx ]; then \
 		echo -n "# packing: $(1) - "; \
 		du -hs "$(1)" | awk '{print $$1}'; \
@@ -120,7 +120,7 @@ define _upx_build =
 	fi
 endef
 
-define _clean =
+define _clean
 	for FOUND in $(1); do \
 		if [ -n "$${FOUND}" ]; then \
 			rm -rfv $${FOUND}; \
@@ -190,7 +190,7 @@ release-amd64: build-amd64
 
 release-all: release-amd64 release-arm64
 
-define _install_build =
+define _install_build
 	BIN_PATH="${DESTDIR}${prefix}/bin"; \
 	echo "# installing $(1) to: $${BIN_PATH}/$(2)"; \
 	[ -d "$${BIN_PATH}" ] || mkdir -vp "$${BIN_PATH}"; \
