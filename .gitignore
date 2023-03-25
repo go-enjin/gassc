@@ -2,3 +2,4 @@
 /.idea
 /gassc
 /gassc.linux.*
+/gassc.darwin.*
