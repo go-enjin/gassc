@@ -1,7 +1,23 @@
+// Copyright (c) 2023  The Go-Enjin Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -10,21 +26,37 @@ import (
 )
 
 var (
-	Version = "0.2.0"
+	Version        = "0.0.0"
+	Release        = "development"
+	BinHash        = "0000000000"
+	DisplayVersion = Version + " (" + Release + ") [" + BinHash + "]"
 )
+
+func init() {
+	var absPath string
+	if v, err := filepath.Abs(os.Args[0]); err == nil {
+		absPath = v
+	} else {
+		absPath = os.Args[0]
+	}
+	if v, err := FileHash64(absPath); err == nil {
+		BinHash = v[:10]
+	}
+	DisplayVersion = Version + " (" + Release + ") [" + BinHash + "]"
+}
 
 func main() {
 	app := &cli.App{
 		Name:        "gassc",
 		Usage:       "go-enjin sass compiler",
+		Version:     DisplayVersion,
 		UsageText:   "gassc [options] <source.scss>",
 		Description: "Simple libsass compiler used by the go-enjin project",
 		Authors: []*cli.Author{{
 			Name:  "The Go-Enjin Team",
 			Email: "go.enjin.org@gmail.com",
 		}},
-		Version: Version,
-		Action:  action,
+		Action: action,
 		Flags: []cli.Flag{
 			&cli.PathFlag{
 				Name:    "output-file",
@@ -64,11 +96,27 @@ func main() {
 				Usage: "same as: --no-source-map --output-style=compressed",
 			},
 		},
+		HideHelpCommand:      true,
+		EnableBashCompletion: true,
 	}
 	if err := app.Run(os.Args); err != nil {
 		fmt.Printf("error: %v", err)
 		os.Exit(1)
 	}
+}
+
+func FileHash64(path string) (shasum string, err error) {
+	var f *os.File
+	if f, err = os.Open(path); err != nil {
+		return
+	}
+	defer func() { _ = f.Close() }()
+	h := sha256.New()
+	if _, err = io.Copy(h, f); err != nil {
+		return
+	}
+	shasum = fmt.Sprintf("%x", h.Sum(nil))
+	return
 }
 
 func action(ctx *cli.Context) (err error) {
