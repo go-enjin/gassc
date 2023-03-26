@@ -82,6 +82,8 @@ func main() {
 				Usage: "same as: --no-source-map --output-style=compressed",
 			},
 		},
+		HideHelpCommand:      true,
+		EnableBashCompletion: true,
 	}
 	if err := app.Run(os.Args); err != nil {
 		fmt.Printf("error: %v", err)
