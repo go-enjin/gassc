@@ -28,7 +28,7 @@
 .PHONY: install install-autocomplete
 
 BIN_NAME ?= gassc
-UNTAGGED_VERSION ?= v0.2.4
+UNTAGGED_VERSION ?= v0.2.5
 UNTAGGED_COMMIT ?= 0000000000
 
 CLEAN_FILES     ?= "${BIN_NAME}" ${BIN_NAME}.*.* pprof.{proxy,repos,watch}
