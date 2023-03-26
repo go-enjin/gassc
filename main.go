@@ -19,37 +19,40 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/bep/golibsass/libsass"
 	"github.com/urfave/cli/v2"
 )
 
 var (
-	Version        = "0.0.0"
-	Release        = "development"
-	BinHash        = "0000000000"
-	DisplayVersion = Version + " (" + Release + ") [" + BinHash + "]"
+	Version = "0.0.0"
+	Release = "development"
 )
 
-func init() {
-	var absPath string
-	if v, err := filepath.Abs(os.Args[0]); err == nil {
-		absPath = v
-	} else {
-		absPath = os.Args[0]
-	}
-	if v, err := FileHash64(absPath); err == nil {
-		BinHash = v[:10]
-	}
-	DisplayVersion = Version + " (" + Release + ") [" + BinHash + "]"
-}
-
 func main() {
+	absPath, binHash := "", "0000000000"
+	if arg0 := os.Args[0]; arg0[0] == '/' || strings.HasPrefix(arg0, "./") || strings.HasPrefix(arg0, "..") {
+		if v, err := filepath.Abs(os.Args[0]); err == nil {
+			absPath = v
+		} else {
+			absPath = os.Args[0]
+		}
+	} else if v, err := exec.LookPath(os.Args[0]); err == nil {
+		absPath = v
+	}
+	if absPath != "" {
+		if v, err := FileHash64(absPath); err == nil {
+			binHash = v[:10]
+		}
+	}
+
 	app := &cli.App{
 		Name:        "gassc",
 		Usage:       "go-enjin sass compiler",
-		Version:     DisplayVersion,
+		Version:     Version + " (" + Release + ") [" + binHash + "]",
 		UsageText:   "gassc [options] <source.scss>",
 		Description: "Simple libsass compiler used by the go-enjin project",
 		Authors: []*cli.Author{{
