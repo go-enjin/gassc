@@ -18,11 +18,19 @@
 #:
 #: CHANGELOG
 #:
+#: v0.1.1 - enjenv go binary updates
+#:        * abstract GO_BIN variable into a defined __go_bin make function
+#:        * __go_bin prefers enjenv's activate script over existing env PATH
+#:        * __go_bin falls back with that 'which enjenv' is found
+#:        * replace all traces of global GO_BIN with calling __go_bin
+#:        * update __golang target to use __go_bin
+#:        * __golang target echos the go version when present
+#:
 #: v0.1.0 - initial implementation
 #:
 ###############################################################################
 
-ENJENV_MK_VERSION := v0.1.0
+ENJENV_MK_VERSION := v0.1.1
 
 .PHONY: __golang __tidy __local __unlocal __be_update
 
@@ -41,8 +49,6 @@ UPX_BIN := $(shell which upx)
 
 SHASUM_BIN := $(shell which shasum)
 SHASUM_CMD := ${SHASUM_BIN} -a 256
-
-GO_BIN := $(shell which go)
 
 GOPKG_KEYS ?=
 
@@ -107,30 +113,56 @@ $(shell \
 )
 endef
 
+define __go_bin
+$(shell \
+	export ENJENV_BIN=`which enjenv`; \
+	if [ -n "$${ENJENV_BIN}" -a -x "$${ENJENV_BIN}" ]; then \
+		export ENJENV_PATH=`"$${ENJENV_BIN}"`; \
+		if [ -n "$${ENJENV_PATH}" -a "$${ENJENV_PATH}/activate" ]; then \
+			( source "$${ENJENV_PATH}/activate" 2>&1 ) > /dev/null; \
+		fi; \
+	fi; \
+	export GO_BIN=`which go`; \
+	if [ -z "$${GO_BIN}" -o ! -x "$${GO_BIN}" ]; then \
+		echo "error: missing go binary" 1>&2; \
+		false; \
+	fi; \
+	echo "$${GO_BIN}" \
+)
+endef
+
 # __go_build 1=bin-name, 2=goos, 3=goarch, 4=ldflags, 5=gcflags, 6=asmflags, 7=extra, 8=src
 define __go_build
 $(shell \
-if [ "$(2)" == "linux" ]; then \
-	if [ "$(3)" == "arm64" ]; then \
-		export CC_VAL=aarch64-linux-gnu-gcc; \
-		export CXX_VAL=aarch64-linux-gnu-g++; \
-	elif [ "$(3)" == "amd64" ]; then \
-		export CC_VAL=x86_64-linux-gnu-gcc; \
-		export CXX_VAL=x86_64-linux-gnu-g++; \
-	else \
-		echo "error: unsupported architecture: $(3)" 1>&2; \
+	export ERR=false; \
+	if [ "$(2)" == "linux" ]; then \
+		if [ "$(3)" == "arm64" ]; then \
+			export CC_VAL=aarch64-linux-gnu-gcc; \
+			export CXX_VAL=aarch64-linux-gnu-g++; \
+		elif [ "$(3)" == "amd64" ]; then \
+			export CC_VAL=x86_64-linux-gnu-gcc; \
+			export CXX_VAL=x86_64-linux-gnu-g++; \
+		else \
+			echo "error: unsupported architecture: $(3)" 1>&2; \
+			export ERR=true; \
+		fi; \
 	fi; \
-fi; \
-echo "\
-${CMD} \
-GOOS=\"$(2)\" GOARCH=\"$(3)\" \
-CGO_ENABLED=1 CC=$${CC_VAL} CXX=$${CXX_VAL}\
-	go build -v \
-		-o \"$(1)\" \
-		-ldflags=\"-buildid='' $(4)\" \
-		-gcflags=\"$(5)\" \
-		-asmflags=\"$(6)\" \
-		$(7) $(8)")
+	if [ "$${ERR}" == "false" ]; then \
+		echo "${CMD} \
+ GOOS=\"$(2)\" GOARCH=\"$(3)\" \
+ CGO_ENABLED=1 CC=$${CC_VAL} CXX=$${CXX_VAL} \
+  $(call __go_bin) \
+    build -v \
+    -o \"$(1)\" \
+    -ldflags=\"-buildid='' $(4)\" \
+    -gcflags=\"$(5)\" \
+    -asmflags=\"$(6)\" \
+    $(7) \
+    $(8)"; \
+	else \
+		echo "echo ERROR missing go binary"; \
+	fi
+)
 endef
 
 # 1: bin-name, 2: goos, 3: goarch, 4: ldflags, 5: gcflags, 6: asmflags, 7: argv, 8: src
@@ -187,28 +219,33 @@ endef
 define __make_go_local
 echo "__make_go_local $(1) $(2)" >> ${_INTERNAL_BUILD_LOG_}; \
 echo "# go.mod local: $(1)"; \
-${CMD} ${GO_BIN} mod edit -replace "$(1)=$(2)"
+${CMD} $(call __go_bin) mod edit -replace "$(1)=$(2)"
 endef
 
 define __make_go_unlocal
 echo "__make_go_unlocal $(1)" >> ${_INTERNAL_BUILD_LOG_}; \
 echo "# go.mod unlocal $(1)"; \
-${CMD} ${GO_BIN} mod edit -dropreplace "$(1)"
+${CMD} $(call __go_bin) mod edit -dropreplace "$(1)"
 endef
 
 define _make_extra_pkgs
 $(if ${GOPKG_KEYS},$(foreach key,${GOPKG_KEYS},$($(key)_GO_PACKAGE)@latest))
 endef
 
+__golang: export GO_BIN=$(call __go_bin)
 __golang:
-	@if [ -z "${GO_BIN}" -o ! -x "${GO_BIN}" ]; then \
-		echo "error: missing go binary" 1>&2; \
+	@if [ -n "${GO_BIN}" -a -x "${GO_BIN}" ]; then \
+		export GO_BIN_VERSION=`${GO_BIN} version`; \
+		echo "# $${GO_BIN_VERSION}"; \
+	else \
+		echo "# missing go binary" 1>&2; \
+		echo "# ${GO_BIN} -- $${GO_BIN}"; \
 		false; \
 	fi
 
 __tidy: __golang
 	@echo "# go mod tidy"
-	@${GO_BIN} mod tidy
+	@$(call __go_bin) mod tidy
 
 __local: __golang
 	@`echo "_make_extra_locals" >> ${_INTERNAL_BUILD_LOG_}`
@@ -226,4 +263,4 @@ __be_update: PKG_LIST = ${GO_ENJIN_PKG}@latest $(call _make_extra_pkgs)
 __be_update: __golang
 	@$(call __validate_extra_pkgs)
 	@echo "# go get ${PKG_LIST}"
-	@GOPROXY=direct ${GO_BIN} get ${_BUILD_TAGS} ${PKG_LIST}
+	@GOPROXY=direct $(call __go_bin) get ${_BUILD_TAGS} ${PKG_LIST}
