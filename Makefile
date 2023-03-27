@@ -60,28 +60,28 @@ realclean: distclean
 debug: BUILD_VERSION=$(call __tag_ver)
 debug: BUILD_RELEASE=$(call __rel_ver)
 debug: TRIM_PATHS=$(call __go_trim_path)
-debug:
+debug: __golang
 	@$(call __go_build_debug,"${BIN_NAME}.${BUILD_OS}.${BUILD_ARCH}",${BUILD_OS},${BUILD_ARCH},.)
 	@${SHASUM_CMD} "${BIN_NAME}.${BUILD_OS}.${BUILD_ARCH}"
 
 build: BUILD_VERSION=$(call __tag_ver)
 build: BUILD_RELEASE=$(call __rel_ver)
 build: TRIM_PATHS=$(call __go_trim_path)
-build:
+build: __golang
 	@$(call __go_build_release,"${BIN_NAME}.${BUILD_OS}.${BUILD_ARCH}",${BUILD_OS},${BUILD_ARCH},.)
 	@${SHASUM_CMD} "${BIN_NAME}.${BUILD_OS}.${BUILD_ARCH}"
 
 build-amd64: BUILD_VERSION=$(call __tag_ver)
 build-amd64: BUILD_RELEASE=$(call __rel_ver)
 build-amd64: TRIM_PATHS=$(call __go_trim_path)
-build-amd64:
+build-amd64: __golang
 	@$(call __go_build_release,"${BIN_NAME}.${BUILD_OS}.amd64",${BUILD_OS},amd64,.)
 	@${SHASUM_CMD} "${BIN_NAME}.${BUILD_OS}.amd64"
 
 build-arm64: BUILD_VERSION=$(call __tag_ver)
 build-arm64: BUILD_RELEASE=$(call __rel_ver)
 build-arm64: TRIM_PATHS=$(call __go_trim_path)
-build-arm64:
+build-arm64: __golang
 	@$(call __go_build_release,"${BIN_NAME}.${BUILD_OS}.arm64",${BUILD_OS},arm64,.)
 	@${SHASUM_CMD} "${BIN_NAME}.${BUILD_OS}.arm64"
 
